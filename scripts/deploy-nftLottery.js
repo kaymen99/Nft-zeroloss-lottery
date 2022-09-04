@@ -19,10 +19,10 @@ async function main() {
   // Deploy NFTLottery contract 
   const Lottery = await ethers.getContractFactory("NFTLottery");
   const lotteryContract = await Lottery.deploy(
-    netConfig["vrfcoordinator"],
-    netConfig["linkAddress"],
-    getAmountInWei(netConfig["fee"]),
-    netConfig["keyHash"],
+    netConfig["vrfCoordinatorV2"],
+    netConfig["subscriptionId"],
+    netConfig["gasLane"],
+    netConfig["callbackGasLimit"],
     netConfig["daiAddress"],
     netConfig["aDaiAddress"],
     netConfig["AAVELendingPool"],
@@ -54,10 +54,10 @@ async function main() {
 
     // args represent contract constructor arguments
     const args = [
-      netConfig["vrfcoordinator"],
-      netConfig["linkAddress"],
-      getAmountInWei(netConfig["fee"]),
-      netConfig["keyHash"],
+      netConfig["vrfCoordinatorV2"],
+      netConfig["subscriptionId"],
+      netConfig["gasLane"],
+      netConfig["callbackGasLimit"],
       netConfig["daiAddress"],
       netConfig["aDaiAddress"],
       netConfig["AAVELendingPool"],
@@ -68,10 +68,11 @@ async function main() {
   }
 }
 
-
 main()
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);
     process.exit(1);
   });
+
+
