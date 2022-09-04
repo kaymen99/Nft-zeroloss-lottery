@@ -34,14 +34,13 @@ module.exports = {
       }
     ],
   },
-  defaultNetwork: "hardhat",
   networks: {
-    hardhat: {
-      forking: {
-        url: MAINNET_FORK_RPC_URL,
-        blockNumber: 15465300
-      }
-    },
+    // hardhat: {
+    //   forking: {
+    //     url: MAINNET_FORK_RPC_URL,
+    //     blockNumber: 15465300
+    //   }
+    // },
     localhost: {
       chainId: 31337,
     },
