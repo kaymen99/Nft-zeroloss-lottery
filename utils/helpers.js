@@ -1,4 +1,4 @@
-onst { ethers } = require("hardhat");
+const { ethers } = require("hardhat");
 
 const developmentChains = ["hardhat", "localhost", "ganache"]
 
