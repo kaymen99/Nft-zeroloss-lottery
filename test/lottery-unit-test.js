@@ -22,6 +22,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
         let owner;
         let lotteryContract;
         let nftContract;
+        let subscriptionId;
         let daiTokenMock, daiTokenAddress;
         let aDaiTokenMock, aDaiTokenAddress;
         let poolMock, poolAddress;
@@ -32,10 +33,10 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
         const ticketPrice = 100 // lottery ticket price = 100 DAI
 
         before(async () => {
-            [owner, user1, user2, user3] = await ethers.getSigners();
+            [owner, user1, user2, user3, randomUser] = await ethers.getSigners();
 
             if (network.config.chainId == 31337) {
-                vrfCoordinatorMock = await deployVRFCoordinatorMock()
+                [vrfCoordinatorMock, subscriptionId] = await deployVRFCoordinatorMock()
                 vrfCoordinatorAddress = vrfCoordinatorMock.address
                 daiTokenMock = await deployERC20Mock()
                 daiTokenAddress = daiTokenMock.address
@@ -46,6 +47,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
 
             } else {
                 vrfCoordinatorAddress = netConfig["vrfCoordinatorV2"]
+                subscriptionId = netConfig["subscriptionId"]
                 daiTokenAddress = netConfig["daiAddress"]
                 aDaiTokenAddress = netConfig["aDaiAddress"]
                 poolAddress = netConfig["AAVELendingPool"]
@@ -62,7 +64,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 const Lottery = await ethers.getContractFactory("NFTLottery");
                 lotteryContract = await Lottery.deploy(
                     vrfCoordinatorAddress,
-                    netConfig["subscriptionId"],
+                    subscriptionId,
                     netConfig["gasLane"],
                     netConfig["callbackGasLimit"],
                     daiTokenAddress,
@@ -82,7 +84,6 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 const ownerAddress = await owner.getAddress();
                 expect(await nftContract.owner()).to.equal(ownerAddress);
             });
-
             it("NFT contract should have correct initial parameters", async () => {
                 expect(await nftContract.baseURI()).to.equal("");
                 expect(await nftContract.maxSupply()).to.equal(maxSupply);
@@ -90,12 +91,10 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
 
                 await expect(nftContract.tokenURI(1)).to.be.revertedWithCustomError(nftContract, 'NFTCollection__QueryForNonExistentToken');
             });
-
             it("NFT Lottery contract should have correct owner address", async () => {
                 const ownerAddress = await owner.getAddress();
                 expect(await lotteryContract.owner()).to.equal(ownerAddress);
             });
-
             it("NFT Lottery contract should have correct initial parameters", async () => {
                 expect(await lotteryContract.paused()).to.equal(1);
                 expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Closed"]);
@@ -105,7 +104,6 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 expect(await lotteryContract.winnersPerLottery()).to.equal(1);
                 expect(await lotteryContract.ticketBasePrice()).to.be.equal(getAmountInWei(ticketPrice));
             });
-
             it("NFT Lottery contract should be set as NFTCollection controller", async () => {
                 expect(await nftContract.controller()).to.equal(lotteryContract.address);
             });
@@ -123,7 +121,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     const Lottery = await ethers.getContractFactory("NFTLottery");
                     lotteryContract = await Lottery.deploy(
                         vrfCoordinatorAddress,
-                        netConfig["subscriptionId"],
+                        subscriptionId,
                         netConfig["gasLane"],
                         netConfig["callbackGasLimit"],
                         daiTokenAddress,
@@ -196,7 +194,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     const Lottery = await ethers.getContractFactory("NFTLottery");
                     lotteryContract = await Lottery.deploy(
                         vrfCoordinatorAddress,
-                        netConfig["subscriptionId"],
+                        subscriptionId,
                         netConfig["gasLane"],
                         netConfig["callbackGasLimit"],
                         daiTokenAddress,
@@ -309,7 +307,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     const Lottery = await ethers.getContractFactory("NFTLottery");
                     lotteryContract = await Lottery.deploy(
                         vrfCoordinatorAddress,
-                        netConfig["subscriptionId"],
+                        subscriptionId,
                         netConfig["gasLane"],
                         netConfig["callbackGasLimit"],
                         daiTokenAddress,
@@ -327,8 +325,8 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 });
 
                 describe("open lottery checkUpkeep", function () {
+                    // upkeepNeeded = (isClosed && isNotPaused)
                     it("returns false if lottery is paused", async () => {
-                        // upkeepNeeded = (isClosed && isNotPaused)
                         const { upkeepNeeded } = await lotteryContract.callStatic.checkUpkeep("0x01")
                         expect(upkeepNeeded).to.equal(false);
                     })
@@ -398,7 +396,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     const Lottery = await ethers.getContractFactory("NFTLottery");
                     lotteryContract = await Lottery.deploy(
                         vrfCoordinatorAddress,
-                        netConfig["subscriptionId"],
+                        subscriptionId,
                         netConfig["gasLane"],
                         netConfig["callbackGasLimit"],
                         daiTokenAddress,
@@ -459,8 +457,207 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
 
                         expect(await lotteryContract.lotteryStartingTimestamp()).to.be.equal(expectedOpenTimstamp);
                         expect(await lotteryContract.lotteryStartingTimestamp()).to.be.equal(startTime);
+
+                    })
+                })
+                describe("close lottery upkeep", function () {
+                    let openTime;
+                    let txReceipt;
+                    before(async () => {
+                        // unpause lottery 
+                        await lotteryContract.connect(owner).pause(2)
+
+                        // open lottery 
+                        const tx = await lotteryContract.performUpkeep("0x01")
+                        let txReceipt = await tx.wait(1)
+                        openTime = Number(txReceipt.events[0].args.timestamp);
+
+                        // add three particpant
+                        const entryCost = await lotteryContract.ticketBasePrice()
+                        await mintAndApproveDai(
+                            user1,
+                            daiTokenAddress,
+                            1000, // 1000 DAI
+                            lotteryContract.address,
+                            entryCost
+                        )
+                        await lotteryContract.connect(user1).enter()
+
+                        await mintAndApproveDai(
+                            user2,
+                            daiTokenAddress,
+                            1000, // 1000 DAI
+                            lotteryContract.address,
+                            entryCost
+                        )
+                        await lotteryContract.connect(user2).enter()
+
+                        await mintAndApproveDai(
+                            user3,
+                            daiTokenAddress,
+                            1000, // 1000 DAI
+                            lotteryContract.address,
+                            entryCost
+                        )
+                        await lotteryContract.connect(user3).enter()
+
+                        // pass time to end lottery period
+                        // 25 hours = 24h lottery period + 1h lottery start delay
+                        await moveTime(25 * 3600)
+                    });
+                    it("should change lottery state to calculating winner", async () => {
+                        expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Calculating_winner"]);
+                    })
+                    it("should emit closed lottery event", async () => {
+                        // close lottery 
+                        const tx = await lotteryContract.performUpkeep("0x02")
+                        txReceipt = await tx.wait(1)
+
+                        const CloseEvent = txReceipt.events[0]
+
+                        expect(CloseEvent.event).to.be.equal('Lottery__IsClosed')
+                        expect(Number(CloseEvent.args.timestamp)).to.be.greaterThanOrEqual(
+                            openTime + 25 * 3600
+                        )
+                    })
+                    it("should emit request winners event", async () => {
+                        const RequestWinnersEvent = txReceipt.events[2]
+
+                        expect(RequestWinnersEvent.event).to.be.equal('Lottery__RequestWinners')
+                        expect(Number(RequestWinnersEvent.args.requestId)).to.be.greaterThanOrEqual(1)
                     })
                 })
             })
+
+            describe("fulfillRandomWords()", function () {
+                before(async () => {
+                    // Deploy NFTCollection contract 
+                    const NFTContract = await ethers.getContractFactory("NFTCollection");
+                    nftContract = await NFTContract.deploy(maxSupply);
+
+                    // Deploy NFTLottery contract 
+                    const Lottery = await ethers.getContractFactory("NFTLottery");
+                    lotteryContract = await Lottery.deploy(
+                        vrfCoordinatorAddress,
+                        subscriptionId,
+                        netConfig["gasLane"],
+                        netConfig["callbackGasLimit"],
+                        daiTokenAddress,
+                        aDaiTokenAddress,
+                        poolAddress,
+                        nftContract.address,
+                        getAmountInWei(ticketPrice)
+                    );
+
+                    // Set the lottery contract as the NFT mint controller
+                    await nftContract.connect(owner).setController(lotteryContract.address)
+
+                    // Fund pool mock with aDai tokens
+                    await fundPoolWithADAI(owner, poolAddress, aDaiTokenAddress)
+
+                    // unpause lottery 
+                    await lotteryContract.connect(owner).pause(2)
+
+                    await lotteryContract.performUpkeep("0x01")
+
+                    // add three particpant
+                    const entryCost = await lotteryContract.ticketBasePrice()
+                    await mintAndApproveDai(
+                        user1,
+                        daiTokenAddress,
+                        1000, // 1000 DAI
+                        lotteryContract.address,
+                        entryCost
+                    )
+                    await lotteryContract.connect(user1).enter()
+
+                    await mintAndApproveDai(
+                        user2,
+                        daiTokenAddress,
+                        1000, // 1000 DAI
+                        lotteryContract.address,
+                        entryCost
+                    )
+                    await lotteryContract.connect(user2).enter()
+
+                    await mintAndApproveDai(
+                        user3,
+                        daiTokenAddress,
+                        1000, // 1000 DAI
+                        lotteryContract.address,
+                        entryCost
+                    )
+                    await lotteryContract.connect(user3).enter()
+
+                    // pass time to end lottery period
+                    // 25 hours = 24h lottery period + 1h lottery start delay
+                    await moveTime(25 * 3600)
+                });
+                it("should only be called after performupkeep", async () => {
+                    await expect(
+                        vrfCoordinatorMock.fulfillRandomWords(0, lotteryContract.address) // reverts if not fulfilled
+                    ).to.be.revertedWith("nonexistent request")
+                    await expect(
+                        vrfCoordinatorMock.fulfillRandomWords(1, lotteryContract.address) // reverts if not fulfilled
+                    ).to.be.revertedWith("nonexistent request")
+                })
+            });
         });
+
+        describe('Admin Functions', () => {
+            before(async () => {
+                // Deploy NFTCollection contract 
+                const NFTContract = await ethers.getContractFactory("NFTCollection");
+                nftContract = await NFTContract.deploy(maxSupply);
+
+                // Deploy NFTLottery contract 
+                const Lottery = await ethers.getContractFactory("NFTLottery");
+                lotteryContract = await Lottery.deploy(
+                    vrfCoordinatorAddress,
+                    subscriptionId,
+                    netConfig["gasLane"],
+                    netConfig["callbackGasLimit"],
+                    daiTokenAddress,
+                    aDaiTokenAddress,
+                    poolAddress,
+                    nftContract.address,
+                    getAmountInWei(ticketPrice)
+                );
+
+                // Set the lottery contract as the NFT mint controller
+                await nftContract.connect(owner).setController(lotteryContract.address)
+
+                // Fund pool mock with aDai tokens
+                await fundPoolWithADAI(owner, poolAddress, aDaiTokenAddress)
+            });
+            it("only admin should be allowed to change NFT Lottery contract parametres & withdraw gains", async () => {
+                await expect(
+                    lotteryContract.connect(randomUser).pause(2)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+                await expect(
+                    lotteryContract.connect(randomUser)._setLotteryTicketBasePrice(getAmountInWei(200))
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+                await expect(
+                    lotteryContract.connect(randomUser)._setWinnersPerLottery(3)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+                await expect(
+                    lotteryContract.connect(randomUser)._setLotteryPeriod(3 * 24 * 3600)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+                await expect(
+                    lotteryContract.connect(randomUser)._setLotteryDelay(24 * 3600)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+                await expect(
+                    lotteryContract.connect(randomUser)._setlotteryNftRewardCount(3)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+                await expect(
+                    lotteryContract.connect(randomUser).withdrawAccumulatedInterest()
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+            })
+
+            it("only admin should be able to change NFT contract controller", async () => {
+                await expect(
+                    nftContract.connect(randomUser).setController(randomUser.address)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+            })
+        })
     });
