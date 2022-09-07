@@ -75,5 +75,8 @@ module.exports = {
     apiKey: {
       rinkeby: RINKEBY_ETHERSCAN_API_KEY,
     }
-  }
+  },
+  mocha: {
+    timeout: 60000 // 60s
+  },
 };
