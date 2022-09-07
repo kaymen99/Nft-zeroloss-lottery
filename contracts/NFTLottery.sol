@@ -63,8 +63,8 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
     event Lottery__Quit(address account, uint256 amount, uint256 withdrawAt);
     event Lottery__IsOpen(uint256 start, uint256 timestamp);
     event Lottery__IsClosed(uint256 timestamp);
-    event Lottery__WinnerPicked(
-        address winner,
+    event Lottery__WinnersPicked(
+        address[] winners,
         uint256 reward,
         uint256 timestamp
     );
@@ -153,8 +153,8 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
 
         _depositToAAVE(_entryPrice);
 
-        isParticipant[msg.sender] = Participant(_newId, true);
         participants.push(msg.sender);
+        isParticipant[msg.sender] = Participant(_newId, true);
 
         emit Lottery__Enter(msg.sender, _entryPrice, block.timestamp);
     }
@@ -232,19 +232,18 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
             address winner = winnersAddresses[i];
             // Remove the winner from the partcipant list and give him back his entry cost in DAI
             _quit(winner);
-
             // Mint the nfts for the winner
             nft.mint(winner, lotteryNftRewardCount);
-
-            emit Lottery__WinnerPicked(
-                winner,
-                lotteryNftRewardCount,
-                block.timestamp
-            );
             unchecked {
                 ++i;
             }
         }
+        emit Lottery__WinnersPicked(
+            winnersAddresses,
+            lotteryNftRewardCount,
+            block.timestamp
+        );
+
         _lotteryState = LOTTERY_STATE.CLOSED;
     }
 
@@ -282,8 +281,8 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
 
         uint256 _participantId = isParticipant[account].id;
 
-        delete isParticipant[account];
         _remove(_participantId);
+        delete isParticipant[account];
 
         _withdrawFromAAVE(account, _amount);
 
@@ -316,9 +315,10 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
         } else {
             // swap last index with the removed index
             address lastParticipant = participants[lastIndex];
-            participants.pop();
             participants[index] = lastParticipant;
             isParticipant[lastParticipant].id = index;
+
+            participants.pop();
         }
     }
 
