@@ -18,7 +18,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
 
 !developmentChains.includes(network.name)
     ? describe.skip
-    : describe("NFT Lottery", () => {
+    : describe("NFT Lottery Unit Tests", () => {
         let owner;
         let lotteryContract;
         let nftContract;
@@ -334,7 +334,6 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                         // unpause lottery 
                         await lotteryContract.connect(owner).pause(2)
 
-                        // upkeepNeeded = (isOpen && lotteryPeriodEnded && hasParticipants);
                         const { upkeepNeeded } = await lotteryContract.callStatic.checkUpkeep("0x01")
                         expect(upkeepNeeded).to.equal(true);
                     })
@@ -412,7 +411,6 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     // Fund pool mock with aDai tokens
                     await fundPoolWithADAI(owner, poolAddress, aDaiTokenAddress)
                 });
-
                 it("should only run if checkupkeep returns true", async () => {
                     // upkeepNeeded = (isClosed && isNotPaused)
                     const upkeep1 = await lotteryContract.callStatic.checkUpkeep("0x01")
@@ -428,10 +426,10 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     // Try to performupkeep to close lottery 
                     await expect(lotteryContract.performUpkeep("0x02")).to.be.revertedWithCustomError(lotteryContract, 'NFTLottery__UpkeepNotNeeded');
                 })
-
+                let openTime;
+                let startTime;
+                let txReceipt;
                 describe("open lottery upkeep", function () {
-                    let timestamp;
-                    let startTime;
                     it("should open change the lottery state to Open", async () => {
                         // unpause lottery 
                         await lotteryContract.connect(owner).pause(2)
@@ -446,14 +444,14 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                         const tx = await lotteryContract.performUpkeep("0x01")
                         let txReceipt = await tx.wait(1)
 
-                        timestamp = Number(txReceipt.events[0].args.timestamp);
+                        openTime = Number(txReceipt.events[0].args.timestamp);
                         startTime = Number(txReceipt.events[0].args.start);
 
                         expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Open"]);
                     })
                     it("should update the lottery start timestamp", async () => {
                         const delay = await lotteryContract.lotteryDelay()
-                        const expectedOpenTimstamp = timestamp + Number(delay)
+                        const expectedOpenTimstamp = openTime + Number(delay)
 
                         expect(await lotteryContract.lotteryStartingTimestamp()).to.be.equal(expectedOpenTimstamp);
                         expect(await lotteryContract.lotteryStartingTimestamp()).to.be.equal(startTime);
@@ -461,17 +459,8 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     })
                 })
                 describe("close lottery upkeep", function () {
-                    let openTime;
-                    let txReceipt;
+
                     before(async () => {
-                        // unpause lottery 
-                        await lotteryContract.connect(owner).pause(2)
-
-                        // open lottery 
-                        const tx = await lotteryContract.performUpkeep("0x01")
-                        let txReceipt = await tx.wait(1)
-                        openTime = Number(txReceipt.events[0].args.timestamp);
-
                         // add three particpant
                         const entryCost = await lotteryContract.ticketBasePrice()
                         await mintAndApproveDai(
@@ -505,9 +494,7 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                         // 25 hours = 24h lottery period + 1h lottery start delay
                         await moveTime(25 * 3600)
                     });
-                    it("should change lottery state to calculating winner", async () => {
-                        expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Calculating_winner"]);
-                    })
+
                     it("should emit closed lottery event", async () => {
                         // close lottery 
                         const tx = await lotteryContract.performUpkeep("0x02")
@@ -519,6 +506,9 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                         expect(Number(CloseEvent.args.timestamp)).to.be.greaterThanOrEqual(
                             openTime + 25 * 3600
                         )
+                    })
+                    it("should change lottery state to calculating winner", async () => {
+                        expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Calculating_winner"]);
                     })
                     it("should emit request winners event", async () => {
                         const RequestWinnersEvent = txReceipt.events[2]
@@ -534,6 +524,11 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     // Deploy NFTCollection contract 
                     const NFTContract = await ethers.getContractFactory("NFTCollection");
                     nftContract = await NFTContract.deploy(maxSupply);
+
+                    if (network.config.chainId == 31337) {
+                        [vrfCoordinatorMock, subscriptionId] = await deployVRFCoordinatorMock()
+                        vrfCoordinatorAddress = vrfCoordinatorMock.address
+                    }
 
                     // Deploy NFTLottery contract 
                     const Lottery = await ethers.getContractFactory("NFTLottery");
@@ -552,12 +547,19 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                     // Set the lottery contract as the NFT mint controller
                     await nftContract.connect(owner).setController(lotteryContract.address)
 
+                    // unpause NFT contract
+                    await nftContract.connect(owner).pause(2)
+
                     // Fund pool mock with aDai tokens
                     await fundPoolWithADAI(owner, poolAddress, aDaiTokenAddress)
+
+                    // set number of winners per lottery to 2 for testing
+                    await lotteryContract.connect(owner)._setWinnersPerLottery(2)
 
                     // unpause lottery 
                     await lotteryContract.connect(owner).pause(2)
 
+                    // open lottery
                     await lotteryContract.performUpkeep("0x01")
 
                     // add three particpant
@@ -595,11 +597,66 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 });
                 it("should only be called after performupkeep", async () => {
                     await expect(
-                        vrfCoordinatorMock.fulfillRandomWords(0, lotteryContract.address) // reverts if not fulfilled
+                        vrfCoordinatorMock.fulfillRandomWords(0, lotteryContract.address)
                     ).to.be.revertedWith("nonexistent request")
                     await expect(
-                        vrfCoordinatorMock.fulfillRandomWords(1, lotteryContract.address) // reverts if not fulfilled
+                        vrfCoordinatorMock.fulfillRandomWords(1, lotteryContract.address)
                     ).to.be.revertedWith("nonexistent request")
+                })
+                let participantsList, winnersList;
+                let aDai, lotteryDAIBalance, lotteryaDAIBalance;
+                it("should calculate lottery winners when receiving random numbers from Chainlink VRF", async () => {
+                    await new Promise(async (resolve, reject) => {
+                        lotteryContract.once('Lottery__WinnersPicked', async (winners, reward, timestamp, winnerPickedEvent) => {
+                            try {
+                                // Check that correct event is emitted
+                                expect(winnerPickedEvent.event).to.be.equal('Lottery__WinnersPicked')
+                                winnersList = winners;
+                                expect(winners.length).to.be.equal(Number(await lotteryContract.winnersPerLottery()))
+                                expect(reward).to.be.equal(await lotteryContract.lotteryNftRewardCount())
+                            } catch (e) {
+                                reject(e)
+                            }
+                            resolve()
+                        })
+                        // Get lottery deposited DAI balnace
+                        lotteryDAIBalance = await lotteryContract.lotteryDAIBalance()
+
+                        // Get lottery initial aDAI balnace
+                        aDai = await ethers.getContractAt("IERC20Mock", aDaiTokenAddress)
+                        lotteryaDAIBalance = await aDai.balanceOf(lotteryContract.address)
+
+                        // Get participant list 
+                        participantsList = await lotteryContract.getParticipantsList()
+
+                        // close lottery 
+                        const tx = await lotteryContract.performUpkeep("0x02")
+                        const txReceipt = await tx.wait(1)
+
+                        const _requestId = Number(txReceipt.events[2].args.requestId)
+                        await vrfCoordinatorMock.fulfillRandomWords(
+                            _requestId,
+                            lotteryContract.address
+                        )
+                    })
+                })
+                it("winners should be picked from the participant list", async () => {
+                    expect(participantsList).to.include(winnersList[0])
+                    expect(participantsList).to.include(winnersList[1])
+                })
+                it("should send NFTs reward to the winners", async () => {
+                    const lotteryReward = await lotteryContract.lotteryNftRewardCount()
+                    expect(await nftContract.balanceOf(winnersList[0])).to.be.equal(lotteryReward)
+                    expect(await nftContract.balanceOf(winnersList[1])).to.be.equal(lotteryReward)
+                })
+                it("should return DAI entry amount to winners", async () => {
+                    expect(await lotteryContract.lotteryDAIBalance()).to.be.lessThan(lotteryDAIBalance);
+                    expect(await aDai.balanceOf(lotteryContract.address)).to.be.lessThan(lotteryaDAIBalance);
+                })
+                it("should change lottery state to Closed & update participant list", async () => {
+                    const _participantsList = await lotteryContract.getParticipantsList()
+                    expect(_participantsList.length).to.be.equal(participantsList.length - winnersList.length);
+                    expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Closed"]);
                 })
             });
         });
