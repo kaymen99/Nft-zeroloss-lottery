@@ -85,7 +85,21 @@ Next you need to setup the environement variables in the .env file, this are use
    ```
 * <b>NOTE :</b> Only the private key is needed when deploying to the ganache network, the others variables are for deploying to the testnets or real networks and etherscan api key is for verifying your contracts on rinkeby etherscan.
 
-* <b>NOTE :</b> To deploy on real/test networks you must get a chainlink subscription [here](https://vrf.chain.link).
+* <b>NOTE :</b> To deploy on real/test networks you must get a chainlink subscription [here](https://vrf.chain.link). And before the deployment you'll need to add your chainlink subscription data and required external contracts addresses into the utils/helpers.js file for the network you wish to deploy to, for example for the Ethereum mainnet it would look like this :
+
+   ```sh
+   1: {
+        name: "mainnet",
+        daiAddress: "0x6b175474e89094c44da98b954eedeac495271d0f",
+        aDaiAddress: "0x028171bCA77440897B824Ca71D1c56caC55b68A3",
+        AAVELendingPool: "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9",
+        subscriptionId: 6926,
+        gasLane: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", // 30 gwei
+        keepersUpdateInterval: "60",
+        callbackGasLimit: 500000, // 500,000 gas
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+    }
+   ```
 
 After going through all the configuration step, you'll need to deploy the 2 contracts to the ganache network by running: 
    ```sh
