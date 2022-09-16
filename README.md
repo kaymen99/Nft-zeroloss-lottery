@@ -34,7 +34,7 @@ This project contains smart contracts for a lossless NFT lottery that levrage th
 
 ## How it works
 
-
+This lottery is developed to be like the poolTogether protocol where users can participate in the multiple lotteries without losing any money, this is possible by levreging the power of the AAVE protocol. 
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
