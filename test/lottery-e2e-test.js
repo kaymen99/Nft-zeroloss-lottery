@@ -193,7 +193,6 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 // Get participant list 
                 participantsList = await lotteryContract.getParticipantsList()
 
-
                 const _requestId = Number(closetxReceipt.events[2].args.requestId)
                 await vrfCoordinatorMock.fulfillRandomWords(
                     _requestId,
@@ -210,5 +209,26 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
             await lotteryContract.performUpkeep("0x01")
 
             expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Open"]);
+        });
+        it("old winners should pay higher entrance fee", async () => {
+            const initialLotteryDAIBalance = await lotteryContract.lotteryDAIBalance()
+
+            const entryCost = await lotteryContract.ticketBasePrice()
+            const expected_entrance_fee = getAmountFromWei(entryCost) * 2
+            // for testing we use a mock vrf coordinator, so we now the picked winners
+            // user1 is one of the winners previously picked
+            await mintAndApproveDai(
+                user1,
+                daiTokenAddress,
+                200, // 200 DAI
+                lotteryContract.address,
+                getAmountInWei(expected_entrance_fee) // allowance = 200 DAI
+            )
+            await lotteryContract.connect(user1).enter()
+
+            const finalLotteryDAIBalance = await lotteryContract.lotteryDAIBalance()
+            expect(getAmountFromWei(finalLotteryDAIBalance)).to.be.equal(
+                getAmountFromWei(initialLotteryDAIBalance) + expected_entrance_fee
+            );
         });
     });
