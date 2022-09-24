@@ -211,24 +211,32 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
             expect(await lotteryContract.getLotteryState()).to.be.equal(lotteryStates["Open"]);
         });
         it("old winners should pay higher entrance fee", async () => {
+            const aDai = await ethers.getContractAt("IERC20Mock", aDaiTokenAddress)
+
+            const initialLotteryaDAIBalance = await aDai.balanceOf(lotteryContract.address)
             const initialLotteryDAIBalance = await lotteryContract.lotteryDAIBalance()
 
             const entryCost = await lotteryContract.ticketBasePrice()
             const expected_entrance_fee = getAmountFromWei(entryCost) * 2
             // for testing we use a mock vrf coordinator, so we now the picked winners
-            // user1 is one of the winners previously picked
             await mintAndApproveDai(
                 user1,
                 daiTokenAddress,
                 200, // 200 DAI
                 lotteryContract.address,
-                getAmountInWei(expected_entrance_fee) // allowance = 200 DAI
+                getAmountInWei(expected_entrance_fee)
             )
             await lotteryContract.connect(user1).enter()
 
             const finalLotteryDAIBalance = await lotteryContract.lotteryDAIBalance()
+            const finalLotteryaDAIBalance = await aDai.balanceOf(lotteryContract.address)
+
+            // check that correct DAI has been paid
             expect(getAmountFromWei(finalLotteryDAIBalance)).to.be.equal(
                 getAmountFromWei(initialLotteryDAIBalance) + expected_entrance_fee
+            );
+            expect(getAmountFromWei(finalLotteryaDAIBalance)).to.be.equal(
+                getAmountFromWei(initialLotteryaDAIBalance) + expected_entrance_fee
             );
         });
     });
