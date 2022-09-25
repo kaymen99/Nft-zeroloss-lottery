@@ -660,6 +660,86 @@ const lotteryStates = { "Open": 0, "Closed": 1, "Calculating_winner": 2 }
                 })
             });
         });
+        
+        describe("Update Functions", () => {
+            beforeEach(async () => {
+                // Deploy NFTCollection contract 
+                const NFTContract = await ethers.getContractFactory("NFTCollection");
+                nftContract = await NFTContract.deploy(maxSupply);
+
+                // Deploy NFTLottery contract 
+                const Lottery = await ethers.getContractFactory("NFTLottery");
+                lotteryContract = await Lottery.deploy(
+                    vrfCoordinatorAddress,
+                    subscriptionId,
+                    netConfig["gasLane"],
+                    netConfig["callbackGasLimit"],
+                    daiTokenAddress,
+                    aDaiTokenAddress,
+                    poolAddress,
+                    nftContract.address,
+                    getAmountInWei(ticketPrice)
+                );
+
+                // Set the lottery contract as the NFT mint controller
+                await nftContract.connect(owner).setController(lotteryContract.address)
+
+                // Fund pool mock with aDai tokens
+                await fundPoolWithADAI(owner, poolAddress, aDaiTokenAddress)
+            });
+            it("should allow owner to change lottery parameters when in paused state", async () => {
+                const newPeriod = 3 * 24 * 3600 // 3 days
+                let tx = await lotteryContract.connect(owner)._setLotteryPeriod(newPeriod)
+                let txReceipt = await tx.wait(1)
+
+                const periodChangedEvent = txReceipt.events[0]
+                expect(periodChangedEvent.event).to.equal("Lottery__PeriodChanged");
+                expect(Number(periodChangedEvent.args.period)).to.equal(newPeriod);
+
+                tx = await lotteryContract.connect(owner)._setlotteryNftRewardCount(3)
+                txReceipt = await tx.wait(1)
+
+                const rewardChangedEvent = txReceipt.events[0]
+                expect(rewardChangedEvent.event).to.equal("Lottery__NftRewardCountChanged");
+                expect(Number(rewardChangedEvent.args.nftCount)).to.equal(3);
+            });
+            it("should not allow owner to change lottery parameters when not in paused state", async () => {
+                // unpause lottery
+                await lotteryContract.connect(owner).pause(2)
+
+                // try to change lottery period
+                const newPeriod = 3 * 24 * 3600 // 3 days
+                await expect(
+                    lotteryContract.connect(owner)._setLotteryPeriod(newPeriod)
+                ).to.be.revertedWithCustomError(lotteryContract, 'Lottery__ChangesNotAllowed');
+
+                // try to change NFT reward
+                await expect(
+                    lotteryContract.connect(owner)._setlotteryNftRewardCount(3)
+                ).to.be.revertedWithCustomError(lotteryContract, 'Lottery__ChangesNotAllowed');
+            });
+            it("should not allow owner to change lottery parameters when lottery in Open state", async () => {
+                // unpause lottery
+                await lotteryContract.connect(owner).pause(2)
+
+                // open lottery 
+                await lotteryContract.performUpkeep("0x01")
+
+                // pause lottery contract but let it open for the current lottery
+                await lotteryContract.connect(owner).pause(1)
+
+                // try to change lottery period
+                const newPeriod = 3 * 24 * 3600 // 3 days
+                await expect(
+                    lotteryContract.connect(owner)._setLotteryPeriod(newPeriod)
+                ).to.be.revertedWithCustomError(lotteryContract, 'Lottery__ChangesNotAllowed');
+
+                // try to change NFT reward
+                await expect(
+                    lotteryContract.connect(owner)._setlotteryNftRewardCount(3)
+                ).to.be.revertedWithCustomError(lotteryContract, 'Lottery__ChangesNotAllowed');
+            });
+        });
 
         describe('Admin Functions', () => {
             before(async () => {
