@@ -106,7 +106,7 @@ Please install or have installed the following:
 Clone this repository with the command :
 
    ```sh
-   git clone https://github.com/kaymen99/NFT-Lossless-lottery.git
+   git clone https://github.com/kaymen99/Nft-zeroloss-lottery.git
    ```
 
 ### Contracts
@@ -178,11 +178,9 @@ If you have any question or problem running this project just contact me: aymenM
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-
 <!-- LICENSE -->
 ## License
 
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
