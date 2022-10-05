@@ -113,7 +113,7 @@ Clone this repository with the command :
 
 As mentioned before the contracts are developed with the Hardhat framework, before deploying them you must first install the required dependancies by running :
    ```sh
-   cd NFT-Lossless-lottery
+   cd Nft-zeroloss-lottery
    yarn
    ```
    
@@ -160,11 +160,11 @@ After going through all the configuration step, you'll need to deploy the 2 cont
     }
    ```
 
-If you want to go through the contracts unit test, you can do it by running:
+If you want to go through the contracts unit tests, you can do it by running:
    ```sh
    yarn test ./test/lottery-unit-test.js
    ```
-And to test the end to end working cycle of the lottery run the command :
+And to test the end to end working cycle of the lottery use the command :
    ```sh
    yarn test ./test/lottery-e2e-test.js
    ```
