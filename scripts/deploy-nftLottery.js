@@ -37,7 +37,9 @@ async function main() {
   console.log("NFT Lottery deployed at:\n", lotteryContract.address);
   console.log("Network deployed :\n", deployNetwork);
 
-  /* transfer contracts addresses & ABIs to the front-end */
+  /* 
+  transfer contracts addresses & ABIs to the front-end 
+  
   if (fs.existsSync("../front-end/src")) {
     fse.copySync("./artifacts/contracts", "../front-end/src/artifacts")
     fs.writeFileSync("../front-end/src/utils/contracts-config.js", `
@@ -47,6 +49,7 @@ async function main() {
       export const networkDeployedTo = "${hre.network.config.chainId}"
     `)
   }
+  */
 
   if (!developmentChains.includes(deployNetwork) && hre.config.etherscan.apiKey[deployNetwork]) {
     console.log("waiting for 6 blocks verification ...")
