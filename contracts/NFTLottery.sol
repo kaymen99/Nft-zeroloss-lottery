@@ -36,14 +36,14 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
     // the price of the ticket in DAI (100 DAI)
     uint256 public ticketBasePrice = 100 * 1e18;
     uint256 public winnersPerLottery = 1;
+    
+    IERC20 immutable dai;
+    IERC20 immutable aDai;
+    IPool immutable pool;
+    INFTCollection immutable nft;
 
     address[] private participants;
     mapping(address => Participant) isParticipant;
-
-    IERC20 dai;
-    IERC20 aDai;
-    IPool pool;
-    INFTCollection nft;
 
     struct Participant {
         uint256 id;
