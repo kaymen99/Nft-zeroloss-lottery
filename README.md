@@ -121,8 +121,6 @@ Next you need to setup the environement variables in the .env file, this are use
 
    ```sh
     MAINNET_FORK_ALCHEMY_URL=https://eth-mainnet.alchemyapi.io/v2/<api-key>
-    RINKEBY_ETHERSCAN_API_KEY=<api-key>
-    RINKEBY_RPC_URL=https://eth-rinkeby.alchemyapi.io/v2/<api-key>
     POLYGON_RPC_URL="Your polygon RPC url from alchemy or infura"
     MUMBAI_RPC_URL="Your mumbai RPC url from alchemy or infura"
     PRIVATE_KEY=<private-key>
