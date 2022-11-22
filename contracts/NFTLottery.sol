@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.7;
+pragma solidity 0.8.10;
 
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
@@ -33,8 +33,8 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
     uint256 public lotteryPeriod = 1 days;
     uint256 public lotteryDelay = 1 hours;
     uint256 public lotteryNftRewardCount = 1;
-    // the price of the ticket in DAI (100 DAI)
-    uint256 public ticketBasePrice = 100 * 1e18;
+    
+    uint256 public ticketBasePrice = 100 * 1e18; // the price of the ticket in DAI (100 DAI)
     uint256 public winnersPerLottery = 1;
     
     IERC20 immutable dai;
@@ -97,7 +97,7 @@ contract NFTLottery is VRFConsumerBaseV2, KeeperCompatibleInterface, Ownable {
     // MODIFIER
 
     // can only change lottery parameters when :
-    // 1- Lottery is paused AND 2- Lottery is closed
+    // 1-> Lottery is paused AND 2-> Lottery is closed
     modifier canChange() {
         if (paused == 2 || _lotteryState != LOTTERY_STATE.CLOSED) {
             revert Lottery__ChangesNotAllowed();
