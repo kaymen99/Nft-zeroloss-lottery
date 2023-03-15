@@ -20,9 +20,9 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
  */
 
-const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL
-const MUMBAI_RPC_URL = process.env.MUMBAI_RPC_URL
-const MAINNET_FORK_RPC_URL = process.env.MAINNET_FORK_ALCHEMY_URL
+const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY;
+const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL;
+const MUMBAI_RPC_URL = process.env.MUMBAI_RPC_URL;
 
 module.exports = {
   solidity: {
@@ -66,5 +66,8 @@ module.exports = {
   },
   mocha: {
     timeout: 60000 // 60s
+  },
+  etherscan: {
+    apiKey: POLYGONSCAN_API_KEY,
   },
 };
