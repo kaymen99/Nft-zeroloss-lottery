@@ -1,37 +1,74 @@
 const hre = require("hardhat");
-const fs = require('fs');
+const fs = require("fs");
 const fse = require("fs-extra");
-const { verify } = require('../utils/verify')
-const { getAmountInWei, developmentChains, networkConfig } = require('../utils/helpers');
-
+const { verify } = require("../utils/verify");
+const {
+  getAmountInWei,
+  deployVRFCoordinatorMock,
+  deployERC20Mock,
+  deployLendingPoolMock,
+  developmentChains,
+  networkConfig,
+} = require("../utils/helpers");
 
 async function main() {
-  const deployNetwork = hre.network.name
+  const deployNetwork = hre.network.name;
 
-  const netConfig = networkConfig[hre.network.config.chainId]
-  const maxSupply = 10000
-  const ticketPrice = 100 // lottery ticket price = 100 DAI
+  const netConfig = networkConfig[hre.network.config.chainId];
+  const maxSupply = 10000;
+  const lotteryParams = {
+    nftRewardCount: 1,
+    winnersPerRound: 1,
+    delay: 3600, // 1 hour
+    startTimestamp: 0,
+    duration: 24 * 3600, // 1 day
+    ticketPrice: getAmountInWei(100), // lottery ticket price = 100 DAI
+  };
 
-  // Deploy NFTCollection contract 
+  let subscriptionId,
+    daiTokenAddress,
+    aDaiTokenAddress,
+    poolAddress,
+    vrfCoordinatorAddress;
+
+  if (developmentChains.includes(deployNetwork)) {
+    let vrfCoordinatorMock;
+    [vrfCoordinatorMock, subscriptionId] = await deployVRFCoordinatorMock();
+    const daiTokenMock = await deployERC20Mock();
+    const aDaiTokenMock = await deployERC20Mock();
+    const poolMock = await deployLendingPoolMock(aDaiTokenAddress);
+    vrfCoordinatorAddress = vrfCoordinatorMock.address;
+    daiTokenAddress = daiTokenMock.address;
+    aDaiTokenAddress = aDaiTokenMock.address;
+    poolAddress = poolMock.address;
+  } else {
+    vrfCoordinatorAddress = netConfig["vrfCoordinatorV2"];
+    subscriptionId = netConfig["subscriptionId"];
+    daiTokenAddress = netConfig["daiAddress"];
+    aDaiTokenAddress = netConfig["aDaiAddress"];
+    poolAddress = netConfig["AAVELendingPool"];
+  }
+
+  // Deploy NFTCollection contract
   const NFTContract = await ethers.getContractFactory("NFTCollection");
   const nftContract = await NFTContract.deploy(maxSupply);
 
-  // Deploy NFTLottery contract 
+  // Deploy NFTLottery contract
   const Lottery = await ethers.getContractFactory("NFTLottery");
   const lotteryContract = await Lottery.deploy(
-    netConfig["vrfCoordinatorV2"],
-    netConfig["subscriptionId"],
+    vrfCoordinatorAddress,
+    subscriptionId,
     netConfig["gasLane"],
     netConfig["callbackGasLimit"],
-    netConfig["daiAddress"],
-    netConfig["aDaiAddress"],
-    netConfig["AAVELendingPool"],
+    daiTokenAddress,
+    aDaiTokenAddress,
+    poolAddress,
     nftContract.address,
-    getAmountInWei(ticketPrice)
+    lotteryParams
   );
 
   // Set the lottery contract as the NFT mint controller
-  await nftContract.setController(lotteryContract.address)
+  await nftContract.setController(lotteryContract.address);
 
   console.log("NFT Collection contract deployed at:\n", nftContract.address);
   console.log("NFT Lottery deployed at:\n", lotteryContract.address);
@@ -51,9 +88,12 @@ async function main() {
   }
   */
 
-  if (!developmentChains.includes(deployNetwork) && hre.config.etherscan.apiKey[deployNetwork]) {
-    console.log("waiting for 6 blocks verification ...")
-    await stakingVault.deployTransaction.wait(6)
+  if (
+    !developmentChains.includes(deployNetwork) &&
+    hre.config.etherscan.apiKey[deployNetwork]
+  ) {
+    console.log("waiting for 6 blocks verification ...");
+    await stakingVault.deployTransaction.wait(6);
 
     // args represent contract constructor arguments
     const args = [
@@ -65,9 +105,9 @@ async function main() {
       netConfig["aDaiAddress"],
       netConfig["AAVELendingPool"],
       nftContract.address,
-      getAmountInWei(ticketPrice)
-    ]
-    await verify(lotteryContract.address, args)
+      lotteryParams,
+    ];
+    await verify(lotteryContract.address, args);
   }
 }
 
@@ -77,5 +117,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
-
