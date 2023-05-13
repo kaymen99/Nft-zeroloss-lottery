@@ -93,7 +93,7 @@ async function main() {
     hre.config.etherscan.apiKey[deployNetwork]
   ) {
     console.log("waiting for 6 blocks verification ...");
-    await stakingVault.deployTransaction.wait(6);
+    await lotteryContract.deployTransaction.wait(6);
 
     // args represent contract constructor arguments
     const args = [
